@@ -175,9 +175,10 @@ ul { list-style: none; }
   text-decoration: none;
 }
 
-.nav__logo {
-  font-size: 1.5rem;
-  color: var(--clr-accent);
+.nav__logo-img {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
 }
 
 .nav__links {
@@ -343,9 +344,8 @@ ul { list-style: none; }
 .hex--accent {
   background: var(--clr-accent-dim);
   border-color: var(--clr-accent);
-  color: var(--clr-accent);
-  font-size: var(--text-2xl);
   grid-column: 2;
+  padding: 8px;
 }
 
 @keyframes hex-pulse {
