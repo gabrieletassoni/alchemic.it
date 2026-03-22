@@ -1,0 +1,35 @@
+services:
+  web:
+    image: gabrieletassoni/alchemic.it:latest
+    # Per sviluppo locale, builda dall'immagine locale invece di Docker Hub:
+    # build: .
+    container_name: alchemic-it
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Watchtower: aggiornamento automatico dal Docker Hub ──
+  # Monitora ogni 5 minuti e ricrea il container se c'è un nuovo :latest
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: alchemic-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 300 --cleanup alchemic-it
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
