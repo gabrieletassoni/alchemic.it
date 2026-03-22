@@ -1,0 +1,80 @@
+name: Build & Push Docker Image to Docker Hub
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - "v*.*.*"
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  # Change to your Docker Hub username / image name
+  IMAGE_NAME: gabrieletassoni/alchemic.it
+
+jobs:
+  build-and-push:
+    name: Build and push Docker image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Docker Buildx (multi-platform support) ──────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── Docker Hub login (skip on PRs from forks) ───────────
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # ── Compute image tags and labels ───────────────────────
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            # Tag pushed semver tags as-is: v1.2.3 → 1.2.3
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            # Branch-based tag: main → latest
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') || github.ref == format('refs/heads/{0}', 'master') }}
+            # SHA short tag for traceability
+            type=sha,format=short
+          labels: |
+            org.opencontainers.image.title=alchemic.it
+            org.opencontainers.image.description=Gabriele Tassoni freelance portfolio
+            org.opencontainers.image.url=https://alchemic.it
+            org.opencontainers.image.vendor=Gabriele Tassoni
+
+      # ── Build (and push when not a PR) ──────────────────────
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Build for both amd64 and arm64 (e.g. Raspberry Pi, Apple Silicon servers)
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── Optional: Update Docker Hub description ─────────────
+      - name: Update Docker Hub description
+        if: github.event_name != 'pull_request'
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.IMAGE_NAME }}
+          short-description: "Gabriele Tassoni — Full Stack Developer & Ruby on Rails Expert portfolio"
+          readme-filepath: ./README.md
